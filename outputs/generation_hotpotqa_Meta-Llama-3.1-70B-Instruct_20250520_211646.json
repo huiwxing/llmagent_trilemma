@@ -1,0 +1,12 @@
+{
+  "RESPONSE_CONSISTENCY": 0.8959999999999999,
+  "RESPONSE_RELEVANCE": 0.6366666666666666,
+  "ResponseMatching": 0.5568,
+  "questions_num": 50,
+  "avg_response_time": 6.291219605955967,
+  "total_response_token_num": 473,
+  "index_energy": 2335.586245028734,
+  "generation_energy": 1442014.471874152,
+  "avg_index_energy_per_token": 0.03400827416789805,
+  "avg_generation_energy_per_token": 3048.6563887402795
+}

@@ -1,0 +1,13 @@
+{
+  "CONTEXT_RELEVANCE": 0.61,
+  "CONTEXT_ACCURACY": 0.7509999999999999,
+  "questions_num": 50,
+  "avg_index_time": 0.00019148561793465993,
+  "avg_retr_time": 0.0023731704386701115,
+  "total_input_token_num": 70386,
+  "total_retr_token_num": 8293,
+  "index_energy": 1132.2304827456474,
+  "retrieval_energy": 1588.1610519304272,
+  "avg_index_energy_per_token": 0.016086018281272516,
+  "avg_retrieval_energy_per_token": 0.19150621631863346
+}
