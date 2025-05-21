@@ -457,8 +457,6 @@ class JointRetrieval:
         self.compressor_tokenizer = self.llamatokenizer
 
     def _initialize_models(self) -> None:
-        """初始化所有所需模型"""
-        # 导入LLM创建函数
         from llm_interface import create_llm
         from utils import DEFAULT_HF_TOKEN
 
@@ -485,8 +483,6 @@ class JointRetrieval:
             @llm_completion_callback()
             def stream_complete(self, prompt: str, **kwargs: Any) -> CompletionResponseGen:
                 response = self.llm_interface(prompt, **kwargs)[0]['generated_text']
-
-                # 简单模拟流式输出，实际应用中需要根据接口特性调整
                 text = ""
                 text += response
                 yield CompletionResponse(text=text, delta=response)

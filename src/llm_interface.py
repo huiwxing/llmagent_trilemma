@@ -1,5 +1,5 @@
 """
-统一LLM接口实现，支持本地Hugging Face和远程API模式
+Unified LLM interface implementation, supporting local Hugging Face and NVIDIA NIM modes
 """
 
 import torch
@@ -12,33 +12,33 @@ from llama_index.core.llms.callbacks import llm_completion_callback
 from openai import OpenAI
 
 class BaseLLM(ABC):
-    """LLM基础接口类"""
+    """Base LLM interface class"""
 
     @abstractmethod
     def __call__(self, text: str, max_tokens: int = 300, return_full_text: bool = False, **kwargs) -> List[
         Dict[str, str]]:
-        """调用LLM生成文本"""
+        """Call LLM to generate text"""
         pass
 
     @abstractmethod
     def apply_chat_template(self, messages: List[Dict[str, str]], tokenize: bool = False,
                             add_generation_prompt: bool = True) -> str:
-        """应用对话模板"""
+        """Apply conversation template"""
         pass
 
     @abstractmethod
     def encode(self, text: str) -> List[int]:
-        """编码文本为token IDs"""
+        """Encode text to token IDs"""
         pass
 
     @abstractmethod
     def decode(self, token_ids: List[int]) -> str:
-        """从token IDs解码为文本"""
+        """Decode from token IDs to text"""
         pass
 
 
 class HuggingFaceLLM(BaseLLM):
-    """HuggingFace本地LLM实现"""
+    """HuggingFace local LLM implementation"""
 
     def __init__(self, model, tokenizer):
         self.model = model
@@ -62,11 +62,11 @@ class HuggingFaceLLM(BaseLLM):
                 pad_token_id=self.tokenizer.pad_token_id
             )
 
-        # 处理生成的文本
+        # Process the generated text
         if return_full_text:
             results = [self.tokenizer.decode(outputs[0], skip_special_tokens=True)]
         else:
-            # 只返回新生成的文本部分
+            # Only return the newly generated text portion
             new_text = self.tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
             results = [new_text]
 
@@ -85,7 +85,7 @@ class HuggingFaceLLM(BaseLLM):
 
 
 class SaturnLLM(BaseLLM):
-    """Saturn API LLM实现"""
+    """Saturn API LLM implementation"""
 
     def __init__(self, client, tokenizer, model_name="meta/llama-3_1-8b-instruct"):
         self.client = client
@@ -117,7 +117,7 @@ class SaturnLLM(BaseLLM):
 
 
 class WrappedCustomLLM(CustomLLM):
-    """适配LlamaIndex的LLM包装器"""
+    """LLM wrapper adapter for LlamaIndex"""
 
     def __init__(self, llm_interface):
         super().__init__()
@@ -131,7 +131,7 @@ class WrappedCustomLLM(CustomLLM):
     def stream_complete(self, prompt: str, **kwargs: Any) -> Generator[CompletionResponse, None, None]:
         response = self.llm_interface(prompt, **kwargs)[0]['generated_text']
 
-        # 简单模拟流式输出，实际应用中需要根据接口特性调整
+        # Simple simulation of streaming output, needs to be adjusted based on interface characteristics for actual applications
         text = ""
         text += response
         yield CompletionResponse(text=text, delta=response)
@@ -148,19 +148,19 @@ class WrappedCustomLLM(CustomLLM):
 def create_llm(mode: str, model_name: str, hf_token: str, saturn_token: str,
                use_4bit: bool = False, use_8bit: bool = False, device: str = "auto"):
     """
-    根据指定模式创建LLM接口
+    Create LLM interface based on specified mode
 
     Args:
-        mode: LLM模式 ('hf' 或 'nim')
-        model_name: 模型名称
+        mode: LLM mode ('hf' or 'nim')
+        model_name: Model name
         hf_token: Hugging Face token
         saturn_token: Saturn API token
-        use_4bit: 是否使用4bit量化
-        use_8bit: 是否使用8bit量化
-        device: 设备设置
+        use_4bit: Whether to use 4bit quantization
+        use_8bit: Whether to use 8bit quantization
+        device: Device setting
 
     Returns:
-        BaseLLM: 创建的LLM接口实例
+        BaseLLM: Created LLM interface instance
     """
     from utils import init_tokenizer_and_model
 
