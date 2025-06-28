@@ -1,5 +1,5 @@
 """
-Unified LLM interface implementation, supporting local Hugging Face and NVIDIA NIM modes
+Unified LLM interface implementation supporting local Hugging Face and remote API modes
 """
 
 import torch
@@ -10,7 +10,7 @@ from llama_index.core.llms import (
 )
 from llama_index.core.llms.callbacks import llm_completion_callback
 from openai import OpenAI
-
+from pydantic import ConfigDict
 class BaseLLM(ABC):
     """Base LLM interface class"""
 
@@ -23,7 +23,7 @@ class BaseLLM(ABC):
     @abstractmethod
     def apply_chat_template(self, messages: List[Dict[str, str]], tokenize: bool = False,
                             add_generation_prompt: bool = True) -> str:
-        """Apply conversation template"""
+        """Apply chat template"""
         pass
 
     @abstractmethod
@@ -62,11 +62,11 @@ class HuggingFaceLLM(BaseLLM):
                 pad_token_id=self.tokenizer.pad_token_id
             )
 
-        # Process the generated text
+        # Process generated text
         if return_full_text:
             results = [self.tokenizer.decode(outputs[0], skip_special_tokens=True)]
         else:
-            # Only return the newly generated text portion
+            # Only return the newly generated text part
             new_text = self.tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
             results = [new_text]
 
@@ -117,8 +117,8 @@ class SaturnLLM(BaseLLM):
 
 
 class WrappedCustomLLM(CustomLLM):
-    """LLM wrapper adapter for LlamaIndex"""
-
+    """LLM wrapper adapted for LlamaIndex"""
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
     def __init__(self, llm_interface):
         super().__init__()
         self.llm_interface = llm_interface
@@ -130,8 +130,6 @@ class WrappedCustomLLM(CustomLLM):
     @llm_completion_callback()
     def stream_complete(self, prompt: str, **kwargs: Any) -> Generator[CompletionResponse, None, None]:
         response = self.llm_interface(prompt, **kwargs)[0]['generated_text']
-
-        # Simple simulation of streaming output, needs to be adjusted based on interface characteristics for actual applications
         text = ""
         text += response
         yield CompletionResponse(text=text, delta=response)
