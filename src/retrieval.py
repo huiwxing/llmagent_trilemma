@@ -37,7 +37,6 @@ from llama_index.core.schema import QueryBundle, QueryType, NodeWithScore
 from llama_index.core.indices.tree.base import TreeRetrieverMode
 from llama_index.core.node_parser import SimpleNodeParser, SentenceWindowNodeParser
 
-from openai import OpenAI
 
 
 @dataclass
@@ -83,166 +82,6 @@ class RetrievalConfig:
     compression_method: str
     repack_method: str
     compression_ratio: float = 0.4
-
-
-class NimClient:
-    """
-    Client for interacting with the Nim API.
-    
-    Attributes:
-        client: OpenAI client instance
-    """
-
-    def __init__(self, saturn_token: str, base_url: str = "http://localhost:8000/v1"):
-        """
-        Initialize the NimClient.
-        
-        Args:
-            saturn_token: Authentication token
-            base_url: API base URL
-        """
-        self.client = OpenAI(
-            base_url=base_url,
-            default_headers={'Authorization': f'token {saturn_token}'},
-            api_key='not-used'
-        )
-
-
-class ModelWrapper:
-    """
-    Wrapper class for model inference.
-    
-    Attributes:
-        client: Client for API calls
-        model_name: Name of the model to use
-    """
-
-    def __init__(self, client: Any, model_name: str = "meta/llama-3_1-8b-instruct"):
-        """
-        Initialize the ModelWrapper.
-        
-        Args:
-            client: Client for API calls
-            model_name: Name of the model to use
-        """
-        self.client = client
-        self.model_name = model_name
-
-    def __call__(self, text: str, max_tokens: int = 300, return_full_text: bool = False, **kwargs) -> List[Dict[str, str]]:
-        """
-        Call the model with the given text.
-        
-        Args:
-            text: Input text
-            max_tokens: Maximum number of tokens to generate
-            return_full_text: Whether to return the full text
-            **kwargs: Additional arguments
-            
-        Returns:
-            List of dictionaries containing generated text
-        """
-        response = self.client.completions.create(
-            model=self.model_name,
-            prompt=text,
-            max_tokens=max_tokens,
-            temperature=kwargs.get('temperature', 0.4),
-            top_p=kwargs.get('top_p', 0.9),
-            stream=False
-        )
-        return [{'generated_text': response.choices[0].text}]
-
-
-class LlamaCustomLLM(CustomLLM):
-    """
-    Custom LLM implementation for Llama model.
-    
-    Attributes:
-        context_window: Size of the context window
-        num_output: Maximum number of tokens to generate
-        model_name: Name of the model
-        client: Client for API calls
-    """
-
-    context_window: int = 12800
-    num_output: int = 1024
-    model_name: str = "meta/llama-3_1-8b-instruct"
-    client: Any = None
-
-    def __init__(self, client):
-        """
-        Initialize the LlamaCustomLLM.
-        
-        Args:
-            client: Client for API calls
-        """
-        super().__init__()
-        self.client = client.client
-
-    @property
-    def metadata(self) -> LLMMetadata:
-        """
-        Get LLM metadata.
-        
-        Returns:
-            LLMMetadata object
-        """
-        return LLMMetadata(
-            context_window=self.context_window,
-            num_output=self.num_output,
-            model_name=self.model_name,
-        )
-
-    @llm_completion_callback()
-    def complete(self, prompt: str, **kwargs: Any) -> CompletionResponse:
-        """
-        Complete the given prompt.
-        
-        Args:
-            prompt: Input prompt
-            **kwargs: Additional arguments
-            
-        Returns:
-            CompletionResponse object
-        """
-        response = self.client.completions.create(
-            model=self.model_name,
-            prompt=prompt,
-            max_tokens=kwargs.get('max_tokens', 500),
-            temperature=kwargs.get('temperature', 0.4),
-            top_p=kwargs.get('top_p', 0.9),
-            n=1,
-            stream=False
-        )
-
-        return CompletionResponse(text=response.choices[0].text)
-
-    @llm_completion_callback()
-    def stream_complete(self, prompt: str, **kwargs: Any) -> CompletionResponseGen:
-        """
-        Stream complete the given prompt.
-        
-        Args:
-            prompt: Input prompt
-            **kwargs: Additional arguments
-            
-        Returns:
-            CompletionResponseGen generator
-        """
-        response = self.client.completions.create(
-            model=self.model_name,
-            prompt=prompt,
-            max_tokens=kwargs.get('max_tokens', 300),
-            temperature=kwargs.get('temperature', 0.4),
-            top_p=kwargs.get('top_p', 0.9),
-            n=1,
-            stream=True
-        )
-
-        text = ""
-        for chunk in response:
-            if chunk.choices[0].text:
-                text += chunk.choices[0].text
-                yield CompletionResponse(text=text, delta=chunk.choices[0].text)
 
 
 def llm_task_cls(llm, tokenizer, query: str) -> bool:
@@ -446,8 +285,8 @@ class JointRetrieval:
 
         # Initialize all required models
         self.llm = llm
-        if self.llm is None:
-            self._initialize_models()
+        self._initialize_models()
+
         self.normal_model = self.llm
         self.retrieval_classification_model = self.llm
         self.rerank_model = self.llm
@@ -457,45 +296,25 @@ class JointRetrieval:
         self.compressor_tokenizer = self.llamatokenizer
 
     def _initialize_models(self) -> None:
-        from llm_interface import create_llm
-        from utils import DEFAULT_HF_TOKEN
+        """Initialize all required models"""
 
-        nim_client = NimClient(self.saturn_token)
-        model_name = self.retrieval_config.get("model_name", "meta-llama/Meta-Llama-3.1-8B-Instruct")
-        self.llm = create_llm(
-            mode=self.llm_mode,
-            model_name=model_name,
-            hf_token=DEFAULT_HF_TOKEN,
-            saturn_token=self.saturn_token
-        )
+        if self.llm is None:
+            from llm_interface import create_llm
+            from utils import DEFAULT_HF_TOKEN
+
+            nim_client = NimClient(self.saturn_token)
+            model_name = self.retrieval_config.get("model_name", "meta-llama/Meta-Llama-3.1-8B-Instruct")
+            self.llm = create_llm(
+                mode=self.llm_mode,
+                model_name=model_name,
+                hf_token=DEFAULT_HF_TOKEN,
+                saturn_token=self.saturn_token
+            )
 
         from llama_index.core import Settings
-        from llama_index.core.llms import CustomLLM, CompletionResponse
-        class WrappedLLM(CustomLLM):
-            def __init__(self, llm_interface):
-                super().__init__()
-                self.llm_interface = llm_interface
+        from llm_interface import WrappedCustomLLM
 
-            def complete(self, prompt: str, **kwargs: Any) -> CompletionResponse:
-                response = self.llm_interface(prompt, **kwargs)[0]['generated_text']
-                return CompletionResponse(text=response)
-
-            @llm_completion_callback()
-            def stream_complete(self, prompt: str, **kwargs: Any) -> CompletionResponseGen:
-                response = self.llm_interface(prompt, **kwargs)[0]['generated_text']
-                text = ""
-                text += response
-                yield CompletionResponse(text=text, delta=response)
-
-            @property
-            def metadata(self):
-                return LLMMetadata(
-                    context_window=4096,
-                    num_output=1024,
-                    model_name="unified-llm"
-                )
-
-        llm_index = WrappedLLM(self.llm)
+        llm_index = WrappedCustomLLM(self.llm)
         Settings.llm = llm_index
         Settings.embed_model = self.embed_model
         Settings.tokenizer = self.llamatokenizer
